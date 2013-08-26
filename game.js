@@ -169,9 +169,9 @@ Game.prototype.doRender = function() {
     r.ctx.fillStyle = 'rgb(0, 80, 120)';
     r.ctx.fillText(secondsText, halfWidth, fontSize);
     r.ctx.fillText(scoreText, halfWidth, 2 * fontSize);
-    if (this.round.score === 0) {
+    if (this.game.score === 0) {
       r.ctx.font = fontSize / 2 + 'px ' + fontFamily;
-      r.ctx.fillText('There is no gameplay!', halfWidth, 3 * fontSize);
+      r.ctx.fillText('Quick! Prevent bubbles from popping!', halfWidth, 3 * fontSize);
     }
   } else {
     var fontSize = 50;
@@ -181,11 +181,6 @@ Game.prototype.doRender = function() {
     r.ctx.fillText(secondsText, halfWidth, halfHeight + fontSize);
     r.ctx.fillText(scoreText, halfWidth, halfHeight + 2 * fontSize);
   }
-};
-
-Game.prototype.onBubbleTouch = function(bubble) {
-  this.game.score += bubble.radius * bubble.radius;
-  this.bubbles = _.without(this.bubbles, bubble);
 };
 
 var game;
