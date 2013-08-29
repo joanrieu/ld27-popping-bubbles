@@ -24,8 +24,12 @@ Game.prototype.onGameStart = function() {
   this.onResize();
   $(window).on('resize', _.bind(this.onResize, this));
 
-  $(this.renderer.canvas).mousedown(_.bind(this.onMouseDown, this));
-  $(this.renderer.canvas).mouseup(_.bind(this.onMouseUp, this));
+  $(this.renderer.canvas).on({
+    'mousedown': _.bind(this.onMouseInputStart, this),
+    'mouseup': _.bind(this.onMouseInputEnd, this),
+    'touchstart': _.bind(this.onTouchInputStart, this),
+    'touchend touchcancel': _.bind(this.onTouchInputEnd, this),
+  });
 
   this.onRoundStart();
   this.registerGameUpdate();
@@ -41,14 +45,14 @@ Game.prototype.onRoundStart = function() {
     };
   }, this));
   setTimeout(_.bind(this.onRoundEnd, this), this.round.duration);
-}
+};
 
 Game.prototype.onRoundEnd = function() {
   if (!this.game.end) {
     this.game.score += this.bubbles.length;
     this.onRoundStart();
   }
-}
+};
 
 Game.prototype.onResize = function() {
   this.renderer.canvas.height = $(this.renderer.canvas).height();
@@ -57,31 +61,55 @@ Game.prototype.onResize = function() {
   this.renderer.aspect = this.renderer.canvas.width / this.renderer.canvas.height;
 };
 
-Game.prototype.onMouseDown = function(event) {
-  var bubble = this.getBubbleFromClick(event);
-  this.lastBubble = bubble;
-  if (bubble) {
-    bubble.speed *= this.round.speedChange;
+Game.prototype.onInputStart = function(bubble) {
+  bubble.speed *= this.round.speedChange;
+};
+
+Game.prototype.onInputEnd = function(bubble) {
+  bubble.speed /= this.round.speedChange;
+};
+
+Game.prototype.onMouseInputStart = function(event) {
+  var bubble = this.getBubbleFromScreenPosition(event.clientX, event.clientY);
+  if (bubble && !bubble.input) {
+    bubble.input = 'mouse';
+    this.onInputStart(bubble);
   }
+};
+
+Game.prototype.onMouseInputEnd = function(event) {
+  var bubble = _.findWhere(this.bubbles, { 'input': 'mouse' });
+  if (bubble) {
+    bubble.input = undefined;
+    this.onInputEnd(bubble);
+  }
+};
+
+Game.prototype.onTouchInputStart = function(event) {
+  _.each(event.originalEvent.changedTouches, _.bind(function(touch) {
+    var bubble = this.getBubbleFromScreenPosition(touch.clientX, touch.clientY);
+    if (bubble && !bubble.input) {
+      bubble.input = 'touch' + touch.identifier;
+      this.onInputStart(bubble);
+    }
+  }, this));
 }
 
-Game.prototype.onMouseUp = function(event) {
-  var bubble = this.lastBubble;
-  this.lastBubble = undefined;
-  if (bubble) {
-    bubble.speed /= this.round.speedChange;
-  }
+Game.prototype.onTouchInputEnd = function(event) {
+  _.each(event.originalEvent.changedTouches, _.bind(function(touch) {
+    var bubble = _.findWhere(this.bubbles, { 'input': 'touch' + touch.identifier });
+    if (bubble) {
+      bubble.input = undefined;
+      this.onInputEnd(bubble);
+    }
+  }, this));
 }
 
-Game.prototype.getBubbleFromClick = function(event) {
-  var position = [
-    event.clientX / this.renderer.scale,
-    event.clientY / this.renderer.scale,
-  ];
+Game.prototype.getBubbleFromScreenPosition = function(x, y) {
   return (_.filter(this.bubbles, _.bind(function(bubble) {
     var vector = [
-      bubble.position[0] - position[0],
-      bubble.position[1] - position[1],
+      bubble.position[0] - x / this.renderer.scale,
+      bubble.position[1] - y / this.renderer.scale,
     ];
     var distanceSquared = vector[0] * vector[0] + vector[1] * vector[1];
     return distanceSquared < bubble.radius * bubble.radius;
@@ -113,7 +141,7 @@ Game.prototype.doBubbleSizeUpdate = function() {
     bubble.radius += bubble.speed * (thisUpdate - this.round.lastUpdate) / this.round.duration / 2;
   }, this));
   this.round.lastUpdate = thisUpdate;
-}
+};
 
 Game.prototype.doCollisionDetection = function() {
   var intersecting = [];
